@@ -366,7 +366,7 @@
         <!-- NEU: ERGEBNIS MELDEN BEREICH (erscheint sobald ein Sieger mit 3 Matches feststeht) -->
         <div id="reportSection" class="hidden flex-col items-center gap-1.5 my-2 p-2.5 rounded bg-emerald-950/10 border-2 border-emerald-700/40 transition-all">
             <div class="text-xs sm:text-sm font-bold text-stone-700">
-                Vorschau Meldung: <span id="reportPreview" class="mono-num px-1.5 py-0.5 rounded bg-white/60 text-stone-900">!result[0000]3:0</span>
+                Vorschau Meldung: <span id="reportPreview" class="mono-num px-1.5 py-0.5 rounded bg-white/60 text-stone-900">!result 0000 3:0</span>
             </div>
             <button 
                 id="reportBtn"
@@ -498,17 +498,12 @@
 
         // EBENE 1: Punkt hinzufügen
         function addPoint(team) {
-            saveHistory();
-
-            // Falls Best-of-5 Serie schon entschieden war, startet ein Klick automatisch eine neue Serie
+            // Wenn der Gesamtsieger feststeht, keine weiteren Klicks oder Auto-Resets zulassen
             if (isMatchSeriesOver()) {
-                state.score1 = 0;
-                state.score2 = 0;
-                state.sets1 = 0;
-                state.sets2 = 0;
-                state.matches1 = 0;
-                state.matches2 = 0;
+                return;
             }
+
+            saveHistory();
 
             if (team === 1) {
                 state.score1++;
@@ -580,6 +575,9 @@
 
         // Manuelles Klicken auf die Satz-Boxen (Ebene 2)
         function addSetManual(team) {
+            if (isMatchSeriesOver()) {
+                return;
+            }
             saveHistory();
             const msg = awardSetToTeam(team);
             render(msg);
@@ -588,6 +586,9 @@
 
         // Manuelles Klicken auf die Match-Boxen (Ebene 3)
         function addMatchManual(team) {
+            if (isMatchSeriesOver()) {
+                return;
+            }
             saveHistory();
             if (team === 1) {
                 state.matches1++;
@@ -743,7 +744,7 @@
 
         function generateResultString() {
             const roomNr = (document.getElementById("roomInput").value || "0000").trim();
-            return `!result[${roomNr}]${state.matches1}:${state.matches2}`;
+            return `!result ${roomNr} ${state.matches1}:${state.matches2}`;
         }
 
         function copyTextToCutbuffer(text) {
