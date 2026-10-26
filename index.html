@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tischtennis Doppel-Zählmaschine</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts für den authentischen Handschrift-/Skizzen-Look -->
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Patrick+Hand&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --paper-pink: #eccfd4;
+            --paper-line: rgba(255, 255, 255, 0.55);
+            --pencil-dark: #434347;
+            --pencil-light: #68686e;
+        }
+
+        body {
+            font-family: 'Caveat', 'Patrick Hand', cursive, sans-serif;
+            background-color: #2b2623;
+            /* Fliesen-/Tisch-Hintergrund wie auf dem Foto */
+            background-image: radial-gradient(#3d3530 1px, transparent 1px), radial-gradient(#322b27 1px, #241f1c 1px);
+            background-size: 40px 40px;
+            color: var(--pencil-dark);
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        /* Rosa liniertes Notizpapier */
+        .notepad-paper {
+            background-color: var(--paper-pink);
+            background-image: repeating-linear-gradient(
+                to bottom,
+                transparent 0px,
+                transparent 33px,
+                var(--paper-line) 34px,
+                var(--paper-line) 36px
+            );
+            box-shadow: 
+                0 20px 40px rgba(0, 0, 0, 0.45),
+                0 2px 6px rgba(0, 0, 0, 0.2),
+                inset 0 0 30px rgba(180, 130, 140, 0.25);
+            position: relative;
+        }
+
+        /* Kleine Abreiß-Kerben am oberen Papierrand wie auf dem Originalfoto */
+        .notepad-notches {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 10px;
+            pointer-events: none;
+        }
+
+        /* Handgezeichnete Bleistift-Boxen */
+        .sketch-box {
+            border: 3px solid var(--pencil-dark);
+            border-radius: 3px 6px 4px 5px / 5px 4px 6px 3px;
+            box-shadow: 
+                2px 2px 0px rgba(67, 67, 71, 0.18),
+                inset 1px 1px 0px rgba(67, 67, 71, 0.12);
+            background-color: rgba(255, 255, 255, 0.08);
+            transition: transform 0.08s ease, background-color 0.15s ease;
+        }
+
+        .sketch-box-interactive:active {
+            transform: scale(0.96);
+            background-color: rgba(255, 255, 255, 0.28);
+        }
+
+        /* Eingabefeld für Room */
+        .room-input {
+            background: transparent;
+            color: var(--pencil-dark);
+            font-family: 'Caveat', cursive;
+            outline: none;
+        }
+        .room-input::placeholder {
+            color: rgba(67, 67, 71, 0.35);
+        }
+
+        /* Animation für den Tischtennisschläger */
+        .racket-slot {
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .racket-active {
+            opacity: 1;
+            transform: scale(1) rotate(-12deg);
+        }
+
+        .racket-inactive {
+            opacity: 0;
+            transform: scale(0.3) rotate(20deg);
+            pointer-events: none;
+        }
+
+        /* Kurzes Aufblitzen beim Punktgewinn */
+        @keyframes scorePop {
+            0% { transform: scale(1); }
+            40% { transform: scale(1.14); }
+            100% { transform: scale(1); }
+        }
+        .score-animate {
+            animation: scorePop 0.22s ease-out;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-2 sm:p-6">
+
+    <!-- Notizblatt Container -->
+    <main class="notepad-paper w-full max-w-md rounded-sm px-5 py-6 sm:px-8 sm:py-8 flex flex-col justify-between">
+        
+        <!-- Dekorative Kerben oben wie im Foto -->
+        <div class="notepad-notches flex justify-around px-16 opacity-60">
+            <div class="w-1 h-2 bg-stone-700/40"></div>
+            <div class="w-1 h-2.5 bg-stone-700/40"></div>
+            <div class="w-1 h-2 bg-stone-700/40"></div>
+        </div>
+
+        <!-- 1. ZEILE: Room + Editierbare Box -->
+        <div class="flex items-center justify-start gap-4 mt-2 mb-6">
+            <label for="roomInput" class="text-4xl sm:text-5xl tracking-wide cursor-pointer select-none">
+                Room
+            </label>
+            <input 
+                id="roomInput" 
+                type="text" 
+                value="Tisch 1" 
+                placeholder="Name..."
+                aria-label="Raumname editieren"
+                class="sketch-box room-input w-44 sm:w-52 h-14 px-3 text-3xl sm:text-4xl font-bold text-center focus:bg-white/25"
+            >
+        </div>
+
+        <!-- 2. ZEILE: Team 1 | Bo3 | Team 2 -->
+        <div class="grid grid-cols-3 items-baseline text-center mb-2">
+            <div 
+                id="team1Name" 
+                contenteditable="true" 
+                spellcheck="false"
+                title="Klicken zum Umbenennen"
+                class="text-3xl sm:text-4xl font-bold text-left pl-2 outline-none focus:underline"
+            >Team 1</div>
+            
+            <button 
+                id="setModeBtn" 
+                 onclick="toggleSetMode()"
+                title="Klicken zum Umschalten (Bo3 / Bo5 / Bo7)"
+                class="text-2xl sm:text-3xl font-bold opacity-85 hover:opacity-100 active:scale-95 transition-transform mx-auto px-2"
+            >Bo3</button>
+            
+            <div 
+                id="team2Name" 
+                contenteditable="true" 
+                spellcheck="false"
+                title="Klicken zum Umbenennen"
+                class="text-3xl sm:text-4xl font-bold text-right pr-2 outline-none focus:underline"
+            >Team 2</div>
+        </div>
+
+        <!-- 3. ZEILE: Große Punkte-Rechtecke & Undo-Pfeil in der Mitte -->
+        <div class="grid grid-cols-11 items-end my-1">
+            
+            <!-- Team 1 Große Zahl + P1 / P2 + Schläger -->
+            <div class="col-span-4 flex flex-col items-center">
+                <button 
+                    id="scoreBox1"
+                    onclick="addPoint(1)"
+                    aria-label="Punkt für Team 1"
+                    class="sketch-box sketch-box-interactive w-full aspect-[4/5] flex items-center justify-center cursor-pointer relative group"
+                >
+                    <span id="score1" class="text-7xl sm:text-8xl font-bold leading-none">0</span>
+                    <span class="absolute bottom-1 right-2 text-base opacity-0 group-hover:opacity-40 transition-opacity">+1</span>
+                </button>
+
+                <!-- Spieler P1 & P2 von Team 1 -->
+                <div class="w-full grid grid-cols-2 text-center mt-2">
+                    <div class="flex flex-col items-center">
+                        <span id="t1p1Name" contenteditable="true" spellcheck="false" class="text-2xl sm:text-3xl font-bold leading-tight outline-none">P1</span>
+                        <!-- Schläger Position 0: Team 1 P1 -->
+                        <div id="racket-0" class="racket-slot racket-active" title="Aufschlag: Team 1 - P1">
+                            <svg class="w-9 h-9 text-stone-800" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round">
+                                <!-- Handgezeichneter Tischtennisschläger + Ball wie auf der Skizze -->
+                                <ellipse cx="28" cy="24" rx="16" ry="18" transform="rotate(-20 28 24)" fill="rgba(67, 67, 71, 0.85)"/>
+                                <path d="M16 34 L38 26" stroke="#eccfd4" stroke-width="2.5"/>
+                                <path d="M35 39 L44 56 L50 53 L40 36" fill="rgba(67, 67, 71, 0.5)"/>
+                                <circle cx="50" cy="18" r="5" fill="#eccfd4" stroke="currentColor" stroke-width="3"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="flex flex-col items-center">
+                        <span id="t1p2Name" contenteditable="true" spellcheck="false" class="text-2xl sm:text-3xl font-bold leading-tight outline-none">P2</span>
+                        <!-- Schläger Position 2: Team 1 P2 -->
+                        <div id="racket-2" class="racket-slot racket-inactive" title="Aufschlag: Team 1 - P2">
+                            <svg class="w-9 h-9 text-stone-800" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round">
+                                <ellipse cx="28" cy="24" rx="16" ry="18" transform="rotate(-20 28 24)" fill="rgba(67, 67, 71, 0.85)"/>
+                                <path d="M16 34 L38 26" stroke="#eccfd4" stroke-width="2.5"/>
+                                <path d="M35 39 L44 56 L50 53 L40 36" fill="rgba(67, 67, 71, 0.5)"/>
+                                <circle cx="50" cy="18" r="5" fill="#eccfd4" stroke="currentColor" stroke-width="3"/>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mitte: Handgezeichneter Zurück-Button (Undo) wie auf der Skizze -->
+            <div class="col-span-3 flex flex-col items-center justify-end pb-12">
+                <button 
+                    id="undoBtn"
+                    onclick="undoLastAction()"
+                    disabled
+                    title="Letzte Aktion rückgängig machen"
+                    aria-label="Letzte Aktion rückgängig machen"
+                    class="p-2 rounded-full transition-all duration-150 opacity-30 hover:opacity-100 active:scale-90 disabled:pointer-events-none"
+                >
+                    <!-- Skizzenhafter gebogener Pfeil nach links oben wie auf dem Zettel -->
+                    <svg class="w-14 h-14 sm:w-16 sm:h-16 text-stone-800" viewBox="0 0 80 80" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M 28 60 C 58 64, 64 25, 26 24" />
+                        <path d="M 35 14 L 22 24 L 34 34 Z" fill="currentColor" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Team 2 Große Zahl + P1 / P2 + Schläger -->
+            <div class="col-span-4 flex flex-col items-center">
+                <button 
+                    id="scoreBox2"
+                    onclick="addPoint(2)"
+                    aria-label="Punkt für Team 2"
+                    class="sketch-box sketch-box-interactive w-full aspect-[4/5] flex items-center justify-center cursor-pointer relative group"
+                >
+                    <span id="score2" class="text-7xl sm:text-8xl font-bold leading-none">0</span>
+                    <span class="absolute bottom-1 right-2 text-base opacity-0 group-hover:opacity-40 transition-opacity">+1</span>
+                </button>
+
+                <!-- Spieler P1 & P2 von Team 2 -->
+                <div class="w-full grid grid-cols-2 text-center mt-2">
+                    <div class="flex flex-col items-center">
+                        <span id="t2p1Name" contenteditable="true" spellcheck="false" class="text-2xl sm:text-3xl font-bold leading-tight outline-none">P1</span>
+                        <!-- Schläger Position 1: Team 2 P1 -->
+                        <div id="racket-1" class="racket-slot racket-inactive" title="Aufschlag: Team 2 - P1">
+                            <svg class="w-9 h-9 text-stone-800" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round">
+                                <ellipse cx="28" cy="24" rx="16" ry="18" transform="rotate(-20 28 24)" fill="rgba(67, 67, 71, 0.85)"/>
+                                <path d="M16 34 L38 26" stroke="#eccfd4" stroke-width="2.5"/>
+                                <path d="M35 39 L44 56 L50 53 L40 36" fill="rgba(67, 67, 71, 0.5)"/>
+                                <circle cx="50" cy="18" r="5" fill="#eccfd4" stroke="currentColor" stroke-width="3"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="flex flex-col items-center">
+                        <span id="t2p2Name" contenteditable="true" spellcheck="false" class="text-2xl sm:text-3xl font-bold leading-tight outline-none">P2</span>
+                        <!-- Schläger Position 3: Team 2 P2 -->
+                        <div id="racket-3" class="racket-slot racket-inactive" title="Aufschlag: Team 2 - P2">
+                            <svg class="w-9 h-9 text-stone-800" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round">
+                                <ellipse cx="28" cy="24" rx="16" ry="18" transform="rotate(-20 28 24)" fill="rgba(67, 67, 71, 0.85)"/>
+                                <path d="M16 34 L38 26" stroke="#eccfd4" stroke-width="2.5"/>
+                                <path d="M35 39 L44 56 L50 53 L40 36" fill="rgba(67, 67, 71, 0.5)"/>
+                                <circle cx="50" cy="18" r="5" fill="#eccfd4" stroke="currentColor" stroke-width="3"/>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Status-Hinweis (z.B. Verlängerung / Satzgewinn) -->
+        <div id="statusBanner" class="h-7 text-center text-xl sm:text-2xl font-bold text-stone-700 transition-opacity duration-200 opacity-90">
+            Aufschlag: Team 1 (P1)
+        </div>
+
+        <!-- 4. ZEILE: Matches Bo5 -->
+        <div class="text-center mt-1 mb-2">
+            <button 
+                id="matchModeBtn"
+                onclick="toggleMatchMode()"
+                title="Klicken zum Umschalten"
+                class="text-3xl sm:text-4xl tracking-wide hover:opacity-100 active:scale-95 transition-transform"
+            >
+                Matches Bo5
+            </button>
+        </div>
+
+        <!-- 5. ZEILE: Untere Boxen [ ] : [ ] -->
+        <div class="grid grid-cols-11 items-center mb-2">
+            <div class="col-span-4 flex justify-center">
+                <button 
+                    onclick="addMatchPoint(1)"
+                    title="Satz/Match für Team 1 (+1)"
+                    class="sketch-box sketch-box-interactive w-full h-14 sm:h-16 flex items-center justify-center text-4xl sm:text-5xl font-bold"
+                >
+                    <span id="matches1">0</span>
+                </button>
+            </div>
+            
+            <div class="col-span-3 text-center text-5xl sm:text-6xl font-bold leading-none select-none pb-2">
+                :
+            </div>
+            
+            <div class="col-span-4 flex justify-center">
+                <button 
+                    onclick="addMatchPoint(2)"
+                    title="Satz/Match für Team 2 (+1)"
+                    class="sketch-box sketch-box-interactive w-full h-14 sm:h-16 flex items-center justify-center text-4xl sm:text-5xl font-bold"
+                >
+                    <span id="matches2">0</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Dezente Fußzeile mit Reset & Aufschlag-Korrektur -->
+        <div class="flex items-center justify-between pt-4 mt-2 border-t border-stone-600/20 text-lg sm:text-xl text-stone-700/80">
+            <button 
+                onclick="cycleStartServer()" 
+                class="hover:text-stone-900 underline decoration-dotted"
+                title="Start-Aufschläger für diesen Satz verschieben"
+            >
+                1. Aufschlag wechseln
+            </button>
+            <button 
+                onclick="resetAll()" 
+                class="hover:text-red-900 underline decoration-dotted"
+            >
+                Neu starten (Reset)
+            </button>
+        </div>
+
+    </main>
+
+    <script>
+        /**
+         * TISCHTENNIS DOPPEL-ZÄHLMASCHINE
+         * Aufschlag-Reihenfolge laut Vorgabe:
+         * Index 0: Team 1 - P1 (Initial)
+         * Index 1: Team 2 - P1
+         * Index 2: Team 1 - P2
+         * Index 3: Team 2 - P2
+         */
+
+        const SERVER_LABELS = [
+            "Team 1 (P1)",
+            "Team 2 (P1)",
+            "Team 1 (P2)",
+            "Team 2 (P2)"
+        ];
+
+        // Spielzustand
+        let state = {
+            score1: 0,
+            score2: 0,
+            matches1: 0,
+            matches2: 0,
+            serverOffset: 0, // Bestimmt, wer den Satz bei 0:0 begonnen hat (Standard: 0 = Team 1 P1)
+            setMode: "Bo3",
+            matchMode: "Matches Bo5"
+        };
+
+        // History-Stack für den Zurück-Button (Undo)
+        let historyStack = [];
+
+        // Zustand vor jeder Änderung sichern
+        function saveHistory() {
+            historyStack.push(JSON.parse(JSON.stringify(state)));
+            updateUndoButton();
+        }
+
+        // Berechnet den aktuellen Aufschläger nach Tischtennis-Doppelregeln
+        function getCurrentServerIndex() {
+            const totalPoints = state.score1 + state.score2;
+            let serveChanges = 0;
+
+            // Tischtennis-Regel: Bis 10:10 wechselt der Aufschlag alle 2 Punkte.
+            // Ab 10:10 (Verlängerung / Deuce) wechselt der Aufschlag nach JEDEM Punkt.
+            if (state.score1 >= 10 && state.score2 >= 10) {
+                // Bis 10:10 (20 Punkte) gab es genau 10 Wechsel (20 / 2), danach jeder einzelne Punkt
+                serveChanges = 10 + (totalPoints - 20);
+            } else {
+                serveChanges = Math.floor(totalPoints / 2);
+            }
+
+            return (state.serverOffset + serveChanges) % 4;
+        }
+
+        // Punkt für Team 1 oder Team 2 hinzufügen
+        function addPoint(team) {
+            saveHistory();
+
+            if (team === 1) {
+                state.score1++;
+                animateElement("score1");
+            } else {
+                state.score2++;
+                animateElement("score2");
+            }
+
+            // Prüfen, ob ein Satz nach Tischtennisregeln gewonnen wurde (mind. 11 Punkte & 2 Punkte Vorsprung)
+            const s1 = state.score1;
+            const s2 = state.score2;
+            let statusMsg = null;
+
+            if ((s1 >= 11 || s2 >= 11) && Math.abs(s1 - s2) >= 2) {
+                const winnerTeam = s1 > s2 ? 1 : 2;
+                if (winnerTeam === 1) {
+                    state.matches1++;
+                    animateElement("matches1");
+                } else {
+                    state.matches2++;
+                    animateElement("matches2");
+                }
+
+                const teamName = document.getElementById(winnerTeam === 1 ? "team1Name" : "team2Name").innerText.trim();
+                statusMsg = `Satz an ${teamName} (${s1}:${s2})! Neuer Satz.`;
+
+                // Punkte für den neuen Satz auf 0:0 setzen
+                state.score1 = 0;
+                state.score2 = 0;
+                // Im neuen Satz rückt der erste Aufschläger im Zyklus um 1 Position weiter
+                state.serverOffset = (state.serverOffset + 1) % 4;
+            }
+
+            render(statusMsg);
+        }
+
+        // Manuelles Erhöhen der unteren Match-/Satz-Anzeige falls gewünscht
+        function addMatchPoint(team) {
+            saveHistory();
+            if (team === 1) {
+                state.matches1++;
+                animateElement("matches1");
+            } else {
+                state.matches2++;
+                animateElement("matches2");
+            }
+            render();
+        }
+
+        // Letzte Aktion rückgängig machen (Zurück-Button in der Mitte)
+        function undoLastAction() {
+            if (historyStack.length === 0) return;
+            state = historyStack.pop();
+            render("Letzte Aktion rückgängig gemacht");
+        }
+
+        // Start-Aufschläger manuell weiterschalten
+        function cycleStartServer() {
+            saveHistory();
+            state.serverOffset = (state.serverOffset + 1) % 4;
+            render();
+        }
+
+        // Umschalten zwischen Bo3 / Bo5 / Bo7 oben
+        function toggleSetMode() {
+            const modes = ["Bo3", "Bo5", "Bo7"];
+            const nextIdx = (modes.indexOf(state.setMode) + 1) % modes.length;
+            state.setMode = modes[nextIdx];
+            render();
+        }
+
+        // Umschalten unten ("Matches Bo5" / "Matches Bo3" / "Matches Bo7")
+        function toggleMatchMode() {
+            const modes = ["Matches Bo5", "Matches Bo3", "Matches Bo7"];
+            const nextIdx = (modes.indexOf(state.matchMode) + 1) % modes.length;
+            state.matchMode = modes[nextIdx];
+            render();
+        }
+
+        // Komplettes Spiel auf Anfangszustand (Team 1 P1 hat Aufschlag) zurücksetzen
+        function resetAll() {
+            if (state.score1 === 0 && state.score2 === 0 && state.matches1 === 0 && state.matches2 === 0 && state.serverOffset === 0) {
+                return;
+            }
+            saveHistory();
+            state.score1 = 0;
+            state.score2 = 0;
+            state.matches1 = 0;
+            state.matches2 = 0;
+            state.serverOffset = 0; // Initialisiert mit P1 von Team 1
+            render("Zählmaschine zurückgesetzt");
+        }
+
+        // Kleine Pop-Animation für geänderte Zahlen
+        function animateElement(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.classList.remove("score-animate");
+            void el.offsetWidth; // Reflow erzwingen
+            el.classList.add("score-animate");
+        }
+
+        function updateUndoButton() {
+            const btn = document.getElementById("undoBtn");
+            if (historyStack.length > 0) {
+                btn.disabled = false;
+                btn.classList.remove("opacity-30");
+                btn.classList.add("opacity-90");
+            } else {
+                btn.disabled = true;
+                btn.classList.remove("opacity-90");
+                btn.classList.add("opacity-30");
+            }
+        }
+
+        // Oberfläche aktualisieren
+        function render(customBannerText = null) {
+            document.getElementById("score1").innerText = state.score1;
+            document.getElementById("score2").innerText = state.score2;
+            document.getElementById("matches1").innerText = state.matches1;
+            document.getElementById("matches2").innerText = state.matches2;
+            document.getElementById("setModeBtn").innerText = state.setMode;
+            document.getElementById("matchModeBtn").innerText = state.matchMode;
+
+            // Aktiven Schläger unter dem jeweiligen Spieler (0..3) einblenden
+            const currentServer = getCurrentServerIndex();
+            for (let i = 0; i < 4; i++) {
+                const racketEl = document.getElementById(`racket-${i}`);
+                if (i === currentServer) {
+                    racketEl.classList.remove("racket-inactive");
+                    racketEl.classList.add("racket-active");
+                } else {
+                    racketEl.classList.remove("racket-active");
+                    racketEl.classList.add("racket-inactive");
+                }
+            }
+
+            // Statuszeile aktualisieren
+            const banner = document.getElementById("statusBanner");
+            if (customBannerText) {
+                banner.innerText = customBannerText;
+            } else {
+                const isDeuce = state.score1 >= 10 && state.score2 >= 10;
+                banner.innerText = isDeuce 
+                    ? `Verlängerung! Aufschlag: ${SERVER_LABELS[currentServer]}`
+                    : `Aufschlag: ${SERVER_LABELS[currentServer]}`;
+            }
+
+            updateUndoButton();
+        }
+
+        // Initiales Rendering beim Laden (Startet bei Team 1 - P1)
+        window.onload = function() {
+            render();
+        };
+    </script>
+</body>
+</html>
