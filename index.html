@@ -106,6 +106,23 @@
             pointer-events: none;
         }
 
+        /* Pfeil: zeigt auf den Spieler, der annimmt */
+        .arrow-slot {
+            position: absolute;
+            top: 50%;
+            width: 34px;
+            height: 34px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .arrow-left  { left: 4px; }
+        .arrow-right { right: 4px; }
+        .arrow-active   { opacity: 1; transform: translateY(-50%) scale(1); }
+        .arrow-inactive { opacity: 0; transform: translateY(-50%) scale(0.2); }
+
         /* Animation bei Punkt-/Satz-/Matchgewinn */
         @keyframes scorePop {
             0% { transform: scale(1); }
@@ -141,17 +158,23 @@
     <main class="notepad-paper w-full max-w-md rounded-md px-4 py-5 sm:px-7 sm:py-6 flex flex-col justify-between">
         
         <!-- 1. ZEILE: Room mit "0000" vorbelegt + Live-Sync Statuspunkt -->
-        <div class="room-row flex items-center justify-center gap-3 mb-4 relative">
-            <label for="roomInput" class="text-2xl sm:text-3xl font-bold tracking-wider uppercase cursor-pointer">
-                Room
-            </label>
+        <div class="room-row flex items-center justify-center gap-2 sm:gap-3 mb-4 relative px-11">
+            <!-- Sprachauswahl (links, auf gleicher Höhe wie die Raumzeile) -->
+            <select id="langSelect" onchange="setLanguage(this.value)" aria-label="Language" title="Language"
+                class="sketch-box absolute left-0 top-1/2 -translate-y-1/2 w-11 h-9 px-0.5 text-sm font-bold text-center cursor-pointer outline-none">
+                <option value="de" title="Deutsch">DE</option>
+                <option value="en" title="English">EN</option>
+                <option value="fr" title="Français">FR</option>
+                <option value="pl" title="Polski">PL</option>
+            </select>
+            <label for="roomInput" data-i18n="room" class="text-2xl sm:text-3xl font-bold tracking-wider uppercase cursor-pointer">Room</label>
             <input 
                 id="roomInput" 
                 type="text" 
                 value="0000" 
                 placeholder="0000"
-                aria-label="Raumnummer editieren"
-                class="sketch-box clean-input mono-num w-32 sm:w-36 h-11 px-2 text-2xl sm:text-3xl font-bold tracking-widest"
+                data-i18n-aria="roomAria" aria-label="Raumnummer editieren"
+                class="sketch-box clean-input mono-num w-28 sm:w-36 h-11 px-2 text-2xl sm:text-3xl font-bold tracking-widest"
             >
             <!-- Kleiner Verbindungs-Indikator für Mehrspieler-Sync -->
             <div id="syncDot" title="Kein MQTT (Raum 0000 / Lokal)" class="w-3 h-3 rounded-full bg-stone-400 absolute right-1 top-1/2 -translate-y-1/2 transition-colors"></div>
@@ -164,7 +187,7 @@
                 <span id="soloText">Nur ich zähle</span>
             </label>
             <!-- Notausgang: Zähler übernehmen (erscheint nur, wenn ein anderes Gerät zählt; zweimal tippen) -->
-            <button id="takeoverBtn" onclick="onTakeoverClick()" class="hidden px-2 py-0.5 rounded bg-white/25 hover:bg-white/50 active:scale-95 transition-all border border-stone-600/30 text-xs sm:text-sm" title="Zählen von dem anderen Gerät übernehmen">Übernehmen</button>
+            <button id="takeoverBtn" onclick="onTakeoverClick()" class="hidden px-2 py-0.5 rounded bg-white/25 hover:bg-white/50 active:scale-95 transition-all border border-stone-600/30 text-xs sm:text-sm" data-i18n-title="takeoverTitle">Übernehmen</button>
         </div>
 
         <!-- 2. ZEILE: Team 1 & Team 2 Überschriften (editierbar) -->
@@ -175,7 +198,7 @@
                     type="text" 
                     value="Team 1"
                     oninput="onNameChange()"
-                    title="Klicken zum Umbenennen"
+                    data-i18n-title="renameTitle"
                     class="clean-input text-2xl sm:text-3xl font-bold tracking-tight border-b border-transparent hover:border-stone-500/40"
                 >
             </div>
@@ -186,7 +209,7 @@
                     type="text" 
                     value="Team 2"
                     oninput="onNameChange()"
-                    title="Klicken zum Umbenennen"
+                    data-i18n-title="renameTitle"
                     class="clean-input text-2xl sm:text-3xl font-bold tracking-tight border-b border-transparent hover:border-stone-500/40"
                 >
             </div>
@@ -257,14 +280,18 @@
                 <!-- Schläger-Spalte exakt auf Höhe der P1 / P2 Boxen -->
                 <div class="w-full flex flex-col gap-1.5 mt-2.5">
                     <!-- Reihe für P1 (Links: Schläger T1-P1 | Rechts: Schläger T2-P1) -->
-                    <div class="h-9 flex items-center justify-between px-1">
+                    <div class="h-9 flex items-center justify-between px-1 relative">
                         <div id="racket-0" class="racket-slot racket-active" title="Aufschlag: Team 1 - P1"></div>
                         <div id="racket-1" class="racket-slot racket-inactive" title="Aufschlag: Team 2 - P1"></div>
+                        <div id="arrow-0" class="arrow-slot arrow-left arrow-inactive" title="Annahme: Team 1 - P1"></div>
+                        <div id="arrow-1" class="arrow-slot arrow-right arrow-inactive" title="Annahme: Team 2 - P1"></div>
                     </div>
                     <!-- Reihe für P2 (Links: Schläger T1-P2 | Rechts: Schläger T2-P2) -->
-                    <div class="h-9 flex items-center justify-between px-1">
+                    <div class="h-9 flex items-center justify-between px-1 relative">
                         <div id="racket-2" class="racket-slot racket-inactive" title="Aufschlag: Team 1 - P2"></div>
                         <div id="racket-3" class="racket-slot racket-inactive" title="Aufschlag: Team 2 - P2"></div>
+                        <div id="arrow-2" class="arrow-slot arrow-left arrow-inactive" title="Annahme: Team 1 - P2"></div>
+                        <div id="arrow-3" class="arrow-slot arrow-right arrow-inactive" title="Annahme: Team 2 - P2"></div>
                     </div>
                 </div>
             </div>
@@ -324,7 +351,7 @@
         <!-- 2. ZÄHLEBENE: Sets Best of 3 -->
         <div class="mt-1 mb-2">
             <div class="text-center text-xl sm:text-2xl font-bold tracking-wide mb-1.5">
-                Sets Best of 3
+                <span data-i18n="setsBo3">Sets Best of 3</span>
             </div>
             <div class="grid grid-cols-11 items-center">
                 <div class="col-span-4 flex justify-center">
@@ -360,7 +387,7 @@
         <!-- 3. ZÄHLEBENE: Matches Best of 5 -->
         <div class="mt-1 mb-3">
             <div class="text-center text-xl sm:text-2xl font-bold tracking-wide mb-1.5">
-                Matches Best of 5
+                <span data-i18n="matchesBo5">Matches Best of 5</span>
             </div>
             <div class="grid grid-cols-11 items-center">
                 <div class="col-span-4 flex justify-center">
@@ -396,14 +423,14 @@
         <!-- ERGEBNIS MELDEN BEREICH (erscheint sobald ein Sieger mit 3 Matches feststeht) -->
         <div id="reportSection" class="hidden flex-col items-center gap-1.5 my-2 p-2.5 rounded bg-emerald-950/10 border-2 border-emerald-700/40 transition-all">
             <div class="text-xs sm:text-sm font-bold text-stone-700">
-                Vorschau Meldung: <span id="reportPreview" class="mono-num px-1.5 py-0.5 rounded bg-white/60 text-stone-900">!result 0000 3:0</span>
+                <span data-i18n="reportPreview">Vorschau Meldung:</span> <span id="reportPreview" class="mono-num px-1.5 py-0.5 rounded bg-white/60 text-stone-900">!result 0000 3:0</span>
             </div>
             <button 
                 id="reportBtn"
                 onclick="reportResult()"
                 class="w-full py-2.5 px-4 rounded font-bold text-base sm:text-lg text-white bg-indigo-600 hover:bg-indigo-700 active:scale-95 transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
             >
-                <span>📋 Ergebnis melden (Kopieren & Discord)</span>
+                <span data-i18n="reportBtn">📋 Ergebnis melden (Kopieren & Discord)</span>
             </button>
             <div id="copyFeedback" class="hidden text-xs font-bold text-emerald-800">
                 ✔ In Zwischenablage kopiert! Öffne Discord...
@@ -415,20 +442,16 @@
             <button 
                 onclick="cycleStartServer()" 
                 class="px-2.5 py-1.5 rounded bg-white/25 hover:bg-white/50 active:scale-95 transition-all border border-stone-600/30"
-                title="Start-Aufschläger für diesen Satz weiterschalten"
-            >
-                Aufschlag wechseln
-            </button>
+                data-i18n-title="cycleServerTitle"
+             data-i18n="cycleServer">Aufschlag wechseln</button>
             <button 
                 onclick="resetAll()" 
                 class="px-2.5 py-1.5 rounded bg-white/25 hover:bg-red-500/20 hover:text-red-900 active:scale-95 transition-all border border-stone-600/30"
-            >
-                Neu starten
-            </button>
+             data-i18n="restart">Neu starten</button>
             <button 
                 onclick="fullReset()" 
                 class="px-2.5 py-1.5 rounded bg-red-600/15 text-red-900 hover:bg-red-600/30 active:scale-95 transition-all border border-red-800/40 tracking-wider"
-                title="Alles auf Standard zurücksetzen (außer Raumname)"
+                data-i18n-title="fullResetTitle"
             >
                 RESET
             </button>
@@ -453,9 +476,174 @@
             </svg>
         `;
 
+        // =====================================================================
+        // MEHRSPRACHIGKEIT (Deutsch, English, Français, Polski)
+        // =====================================================================
+        const I18N = {
+            de: {
+                title: "Tischtennis Doppel-Zählmaschine",
+                room: "Room", roomAria: "Raumnummer editieren",
+                soloOnly: "Nur ich zähle", otherCounts: "Anderes Gerät zählt", connecting: "Verbinde …",
+                takeover: "Übernehmen", takeoverSure: "Sicher?", takeoverTitle: "Zählen von dem anderen Gerät übernehmen",
+                renameTitle: "Klicken zum Umbenennen",
+                undoTitle: "Letzte Aktion rückgängig machen",
+                setsTitle: "Sätze (zählen automatisch)", matchesTitle: "Matches (zählen automatisch)",
+                setsBo3: "Sets Best of 3", matchesBo5: "Matches Best of 5",
+                reportPreview: "Vorschau Meldung:", reportBtn: "📋 Ergebnis melden (Kopieren & Discord)",
+                copied: "✔ „{text}“ kopiert! Öffne Discord...",
+                cycleServer: "Aufschlag wechseln", cycleServerTitle: "Start-Aufschläger für diesen Satz weiterschalten",
+                restart: "Neu starten", fullResetTitle: "Alles auf Standard zurücksetzen (außer Raumname)",
+                serving: "Aufschlag", receiving: "Annahme", deuce: "Verlängerung!",
+                locked: "🔒 Gesperrt – bitte Raumnummer eingeben (nicht 0000)",
+                seriesWon: "🏆 {team} hat das Match ({a}:{b}) gewonnen!",
+                seriesWonMsg: "🏆 {team} gewinnt die Serie ({a}:{b} Matches)!",
+                matchTo: "Match an {team} ({sets} Sätze)! Stand Matches: {m}",
+                setTo: "Satz an {team} ({pts})! Sätze: {sets}", setToNoPts: "Satz an {team}! Sätze: {sets}",
+                undone: "Letzte Aktion rückgängig gemacht", resetMsg: "Zählmaschine zurückgesetzt",
+                fullResetMsg: "Alles auf Standard zurückgesetzt",
+                pointFor: "Punkt für {team}", playerAria: "Spieler {n} {team}",
+                dotLocal: "Kein MQTT (Raum 0000 / Lokal)", dotConnecting: "Verbinde mit Raum {room}...",
+                dotLive: "Live verbunden (Raum: {room})", dotOffline: "Offline"
+            },
+            en: {
+                title: "Table Tennis Doubles Counter",
+                room: "Room", roomAria: "Edit room number",
+                soloOnly: "Only I count", otherCounts: "Another device is counting", connecting: "Connecting …",
+                takeover: "Take over", takeoverSure: "Sure?", takeoverTitle: "Take over counting from the other device",
+                renameTitle: "Click to rename",
+                undoTitle: "Undo last action",
+                setsTitle: "Sets (counted automatically)", matchesTitle: "Matches (counted automatically)",
+                setsBo3: "Sets Best of 3", matchesBo5: "Matches Best of 5",
+                reportPreview: "Report preview:", reportBtn: "📋 Report result (copy & Discord)",
+                copied: "✔ “{text}” copied! Opening Discord...",
+                cycleServer: "Change server", cycleServerTitle: "Advance the starting server for this set",
+                restart: "Restart", fullResetTitle: "Reset everything to default (except room name)",
+                serving: "Serve", receiving: "Receive", deuce: "Deuce!",
+                locked: "🔒 Locked – please enter a room number (not 0000)",
+                seriesWon: "🏆 {team} won the match ({a}:{b})!",
+                seriesWonMsg: "🏆 {team} wins the series ({a}:{b} matches)!",
+                matchTo: "Match to {team} ({sets} sets)! Matches: {m}",
+                setTo: "Set to {team} ({pts})! Sets: {sets}", setToNoPts: "Set to {team}! Sets: {sets}",
+                undone: "Last action undone", resetMsg: "Counter reset",
+                fullResetMsg: "Everything reset to default",
+                pointFor: "Point for {team}", playerAria: "Player {n} {team}",
+                dotLocal: "No MQTT (room 0000 / local)", dotConnecting: "Connecting to room {room}...",
+                dotLive: "Live connected (room: {room})", dotOffline: "Offline"
+            },
+            fr: {
+                title: "Compteur de double de tennis de table",
+                room: "Salle", roomAria: "Modifier le numéro de salle",
+                soloOnly: "Je compte seul", otherCounts: "Un autre appareil compte", connecting: "Connexion …",
+                takeover: "Reprendre", takeoverSure: "Sûr ?", takeoverTitle: "Reprendre le comptage de l'autre appareil",
+                renameTitle: "Cliquer pour renommer",
+                undoTitle: "Annuler la dernière action",
+                setsTitle: "Sets (comptés automatiquement)", matchesTitle: "Matchs (comptés automatiquement)",
+                setsBo3: "Sets – au meilleur des 3", matchesBo5: "Matchs – au meilleur des 5",
+                reportPreview: "Aperçu du message :", reportBtn: "📋 Signaler le résultat (copier & Discord)",
+                copied: "✔ « {text} » copié ! Ouverture de Discord...",
+                cycleServer: "Changer de service", cycleServerTitle: "Passer au service suivant pour ce set",
+                restart: "Recommencer", fullResetTitle: "Tout réinitialiser (sauf le nom de la salle)",
+                serving: "Service", receiving: "Réception", deuce: "Prolongation !",
+                locked: "🔒 Verrouillé – veuillez saisir un numéro de salle (pas 0000)",
+                seriesWon: "🏆 {team} a gagné le match ({a}:{b}) !",
+                seriesWonMsg: "🏆 {team} remporte la série ({a}:{b} matchs) !",
+                matchTo: "Match pour {team} ({sets} sets) ! Matchs : {m}",
+                setTo: "Set pour {team} ({pts}) ! Sets : {sets}", setToNoPts: "Set pour {team} ! Sets : {sets}",
+                undone: "Dernière action annulée", resetMsg: "Compteur réinitialisé",
+                fullResetMsg: "Tout a été réinitialisé",
+                pointFor: "Point pour {team}", playerAria: "Joueur {n} {team}",
+                dotLocal: "Pas de MQTT (salle 0000 / local)", dotConnecting: "Connexion à la salle {room}...",
+                dotLive: "Connecté en direct (salle : {room})", dotOffline: "Hors ligne"
+            },
+            pl: {
+                title: "Licznik debla tenisa stołowego",
+                room: "Pokój", roomAria: "Edytuj numer pokoju",
+                soloOnly: "Tylko ja liczę", otherCounts: "Inne urządzenie liczy", connecting: "Łączenie …",
+                takeover: "Przejmij", takeoverSure: "Pewny?", takeoverTitle: "Przejmij liczenie od drugiego urządzenia",
+                renameTitle: "Kliknij, aby zmienić nazwę",
+                undoTitle: "Cofnij ostatnią akcję",
+                setsTitle: "Sety (liczone automatycznie)", matchesTitle: "Mecze (liczone automatycznie)",
+                setsBo3: "Sety – do 2 wygranych", matchesBo5: "Mecze – do 3 wygranych",
+                reportPreview: "Podgląd zgłoszenia:", reportBtn: "📋 Zgłoś wynik (kopiuj i Discord)",
+                copied: "✔ „{text}” skopiowano! Otwieram Discord...",
+                cycleServer: "Zmień serwis", cycleServerTitle: "Przesuń zaczynającego serwis w tym secie",
+                restart: "Zacznij od nowa", fullResetTitle: "Zresetuj wszystko (oprócz nazwy pokoju)",
+                serving: "Serwis", receiving: "Odbiór", deuce: "Gra na przewagi!",
+                locked: "🔒 Zablokowane – wpisz numer pokoju (nie 0000)",
+                seriesWon: "🏆 {team} wygrywa mecz ({a}:{b})!",
+                seriesWonMsg: "🏆 {team} wygrywa serię ({a}:{b} meczów)!",
+                matchTo: "Mecz dla {team} ({sets} setów)! Mecze: {m}",
+                setTo: "Set dla {team} ({pts})! Sety: {sets}", setToNoPts: "Set dla {team}! Sety: {sets}",
+                undone: "Ostatnia akcja cofnięta", resetMsg: "Licznik zresetowany",
+                fullResetMsg: "Wszystko zresetowane do ustawień domyślnych",
+                pointFor: "Punkt dla {team}", playerAria: "Zawodnik {n} {team}",
+                dotLocal: "Brak MQTT (pokój 0000 / lokalnie)", dotConnecting: "Łączenie z pokojem {room}...",
+                dotLive: "Połączono na żywo (pokój: {room})", dotOffline: "Offline"
+            }
+        };
+
+        let currentLang = (function () {
+            try {
+                const saved = localStorage.getItem("tt_lang");
+                if (saved && I18N[saved]) return saved;
+            } catch (e) {}
+            return "de"; // Standardsprache: Deutsch
+        })();
+
+        // Übersetzung holen ({platzhalter} werden ersetzt; Fallback: Deutsch)
+        function t(key, params) {
+            let str = (I18N[currentLang] && I18N[currentLang][key]);
+            if (str === undefined) str = I18N.de[key];
+            if (str === undefined) str = key;
+            if (params) {
+                for (const k in params) str = str.split("{" + k + "}").join(params[k]);
+            }
+            return str;
+        }
+
+        // Alle statischen Texte im Dokument in der gewählten Sprache setzen
+        function applyStaticI18n() {
+            document.documentElement.lang = currentLang;
+            document.title = t("title");
+            document.querySelectorAll("[data-i18n]").forEach(el => { el.textContent = t(el.dataset.i18n); });
+            document.querySelectorAll("[data-i18n-title]").forEach(el => { el.title = t(el.dataset.i18nTitle); });
+            document.querySelectorAll("[data-i18n-aria]").forEach(el => { el.setAttribute("aria-label", t(el.dataset.i18nAria)); });
+
+            const undo = document.getElementById("undoBtn");
+            undo.title = t("undoTitle");
+            undo.setAttribute("aria-label", t("undoTitle"));
+            [1, 2].forEach(n => {
+                document.getElementById(`setBox${n}`).title = t("setsTitle");
+                document.getElementById(`matchBox${n}`).title = t("matchesTitle");
+            });
+
+            const sel = document.getElementById("langSelect");
+            if (sel) sel.value = currentLang;
+        }
+
+        function setLanguage(lang) {
+            if (!I18N[lang]) return;
+            currentLang = lang;
+            try { localStorage.setItem("tt_lang", lang); } catch (e) {}
+            applyStaticI18n();
+            render();
+        }
+
         // Schläger-SVGs in alle 4 Slots einsetzen
         for (let i = 0; i < 4; i++) {
             document.getElementById(`racket-${i}`).innerHTML = COLORFUL_RACKET_SVG;
+        }
+
+        // Kleiner Pfeil für den Rückschläger (nach rechts gezeichnet, links gespiegelt)
+        const ARROW_SVG = (flip) => `
+            <svg class="w-6 h-6" viewBox="0 0 40 24" fill="none" style="${flip ? 'transform:scaleX(-1)' : ''}">
+                <path d="M4 12 H31 M22 3.5 L32 12 L22 20.5" stroke="#2c2d30" stroke-width="4.5"
+                      stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        `;
+        // 0 = T1-P1, 1 = T2-P1, 2 = T1-P2, 3 = T2-P2 -> Team 1 (links) gespiegelt
+        for (let i = 0; i < 4; i++) {
+            document.getElementById(`arrow-${i}`).innerHTML = ARROW_SVG(i === 0 || i === 2);
         }
 
         /**
@@ -638,15 +826,15 @@
 
                 // Prüfen, ob Best of 5 Matches gewonnen wurde (3 Siege, z.B. 3:1)
                 if (state.matches1 >= 3 || state.matches2 >= 3) {
-                    return `🏆 ${teamName} gewinnt die Serie (${state.matches1}:${state.matches2} Matches)!`;
+                    return t("seriesWonMsg", { team: teamName, a: state.matches1, b: state.matches2 });
                 }
 
-                return `Match an ${teamName} (${setScoreStr} Sätze)! Stand Matches: ${state.matches1}:${state.matches2}`;
+                return t("matchTo", { team: teamName, sets: setScoreStr, m: `${state.matches1}:${state.matches2}` });
             }
 
             return pointScoreStr 
-                ? `Satz an ${teamName} (${pointScoreStr})! Sätze: ${setScoreStr}`
-                : `Satz an ${teamName}! Sätze: ${setScoreStr}`;
+                ? t("setTo", { team: teamName, pts: pointScoreStr, sets: setScoreStr })
+                : t("setToNoPts", { team: teamName, sets: setScoreStr });
         }
 
         // Manuelles Klicken auf die Satz-Boxen (Ebene 2)
@@ -677,7 +865,7 @@
             let msg = null;
             if (state.matches1 >= 3 || state.matches2 >= 3) {
                 const winnerName = state.matches1 >= 3 ? state.team1Name : state.team2Name;
-                msg = `🏆 ${winnerName} gewinnt die Serie (${state.matches1}:${state.matches2} Matches)!`;
+                msg = t("seriesWonMsg", { team: winnerName, a: state.matches1, b: state.matches2 });
             }
 
             render(msg);
@@ -699,7 +887,7 @@
             state.serverOffset = prev.serverOffset;
             state.serverDir = prev.serverDir;
             updateUndoButton();
-            render("Letzte Aktion rückgängig gemacht");
+            render(t("undone"));
             broadcastState();
         }
 
@@ -735,7 +923,7 @@
                 t2p2Name: "P2"
             };
             historyStack = [];
-            render("Alles auf Standard zurückgesetzt");
+            render(t("fullResetMsg"));
             broadcastState();
         }
 
@@ -751,7 +939,7 @@
             state.matches2 = 0;
             state.serverOffset = 0;
             state.serverDir = 1;
-            render("Zählmaschine zurückgesetzt");
+            render(t("resetMsg"));
             broadcastState();
         }
 
@@ -838,25 +1026,46 @@
                 }
             }
 
+            // Pfeil beim Rückschläger einblenden (nicht, wenn die Serie schon entschieden ist)
+            const seriesOver = isMatchSeriesOver();
+            for (let i = 0; i < 4; i++) {
+                const arrowEl = document.getElementById(`arrow-${i}`);
+                const show = !seriesOver && i === currentReceiver;
+                arrowEl.classList.toggle("arrow-active", show);
+                arrowEl.classList.toggle("arrow-inactive", !show);
+            }
+
+            // Übersetzte Tooltips / Beschriftungen (hängen teils von den Namen ab)
+            for (let i = 0; i < 4; i++) {
+                document.getElementById(`racket-${i}`).title = `${t("serving")}: ${getServerLabel(i)}`;
+                document.getElementById(`arrow-${i}`).title = `${t("receiving")}: ${getServerLabel(i)}`;
+            }
+            document.getElementById("scoreBox1").setAttribute("aria-label", t("pointFor", { team: state.team1Name }));
+            document.getElementById("scoreBox2").setAttribute("aria-label", t("pointFor", { team: state.team2Name }));
+            document.getElementById("t1p1Name").setAttribute("aria-label", t("playerAria", { n: 1, team: state.team1Name }));
+            document.getElementById("t1p2Name").setAttribute("aria-label", t("playerAria", { n: 2, team: state.team1Name }));
+            document.getElementById("t2p1Name").setAttribute("aria-label", t("playerAria", { n: 1, team: state.team2Name }));
+            document.getElementById("t2p2Name").setAttribute("aria-label", t("playerAria", { n: 2, team: state.team2Name }));
+
             // Banner-Text (Zeile 1: Aufschlag | Zeile 2: Annahme) aktualisieren
             const banner = document.getElementById("statusBanner");
             const receiverBanner = document.getElementById("receiverBanner");
 
             if (state.matches1 >= 3 || state.matches2 >= 3) {
                 const winner = state.matches1 >= 3 ? state.team1Name : state.team2Name;
-                banner.innerText = `🏆 ${winner} hat das Match (${state.matches1}:${state.matches2}) gewonnen!`;
+                banner.innerText = t("seriesWon", { team: winner, a: state.matches1, b: state.matches2 });
                 receiverBanner.classList.add("hidden");
             } else {
                 receiverBanner.classList.remove("hidden");
-                receiverBanner.innerText = `Annahme: ${getServerLabel(currentReceiver)}`;
+                receiverBanner.innerText = `${t("receiving")}: ${getServerLabel(currentReceiver)}`;
 
                 if (customBannerText) {
                     banner.innerText = customBannerText;
                 } else {
                     const isDeuce = state.score1 >= 10 && state.score2 >= 10;
                     banner.innerText = isDeuce 
-                        ? `Verlängerung! Aufschlag: ${getServerLabel(currentServer)}`
-                        : `Aufschlag: ${getServerLabel(currentServer)}`;
+                        ? `${t("deuce")} ${t("serving")}: ${getServerLabel(currentServer)}`
+                        : `${t("serving")}: ${getServerLabel(currentServer)}`;
                 }
             }
 
@@ -875,15 +1084,15 @@
             const notCounter = otherCounts || waiting;
             document.getElementById("soloCheck").checked = state.controllerId === deviceId;
             document.getElementById("soloText").innerText = waiting
-                ? "Verbinde …"
-                : (otherCounts ? "Anderes Gerät zählt" : "Nur ich zähle");
+                ? t("connecting")
+                : (otherCounts ? t("otherCounts") : t("soloOnly"));
 
             // "Übernehmen"-Button nur zeigen, wenn ein anderes Gerät zählt
             const showTake = !locked && !waiting && otherCounts;
             const takeBtn = document.getElementById("takeoverBtn");
             takeBtn.classList.toggle("hidden", !showTake);
             if (!showTake) disarmTakeover();
-            takeBtn.innerText = takeoverArmed ? "Sicher?" : "Übernehmen";
+            takeBtn.innerText = takeoverArmed ? t("takeoverSure") : t("takeover");
 
             main.querySelectorAll("button, input").forEach(el => {
                 if (el.id === "roomInput" || el.dataset.static) return;
@@ -899,7 +1108,7 @@
             });
 
             if (locked) {
-                document.getElementById("statusBanner").innerText = "🔒 Gesperrt – bitte Raumnummer eingeben (nicht 0000)";
+                document.getElementById("statusBanner").innerText = t("locked");
                 document.getElementById("receiverBanner").classList.add("hidden");
             }
         }
@@ -944,7 +1153,7 @@
 
             // Visuelles Feedback anzeigen
             const feedback = document.getElementById("copyFeedback");
-            feedback.innerText = `✔ "${resultText}" kopiert! Öffne Discord...`;
+            feedback.innerText = t("copied", { text: resultText });
             feedback.classList.remove("hidden");
 
             // 2. Aktion: Discord-Kanal öffnen
@@ -1063,13 +1272,13 @@
             if (!isMqttActiveRoom()) {
                 currentTopic = "";
                 dot.className = "w-3 h-3 rounded-full bg-stone-400 absolute right-1 top-1/2 -translate-y-1/2 transition-colors";
-                dot.title = "Kein MQTT (Raum 0000 / Lokal)";
+                dot.title = t("dotLocal");
                 return;
             }
 
             currentTopic = "tt_doppel_sync_v2_" + encodeURIComponent(roomVal);
             dot.className = "w-3 h-3 rounded-full bg-amber-500 absolute right-1 top-1/2 -translate-y-1/2 transition-colors";
-            dot.title = "Verbinde mit Raum " + roomVal + "...";
+            dot.title = t("dotConnecting", { room: roomVal });
 
             // Notausgang: auch ohne Verbindung/Raumstand nach 6 s freigeben (z. B. offline)
             syncFallbackTimer = setTimeout(() => {
@@ -1086,7 +1295,7 @@
 
                 mqttClient.on("connect", () => {
                     dot.className = "w-3 h-3 rounded-full bg-emerald-600 shadow-[0_0_8px_#059669] absolute right-1 top-1/2 -translate-y-1/2 transition-colors";
-                    dot.title = "Live verbunden (Raum: " + roomVal + ")";
+                    dot.title = t("dotLive", { room: roomVal });
                     mqttClient.subscribe(currentTopic);
 
                     // Kurz auf den gespeicherten Raumstand warten; kommt keiner, ist der Raum frei
@@ -1098,7 +1307,7 @@
 
                 mqttClient.on("close", () => {
                     dot.className = "w-3 h-3 rounded-full bg-stone-400 absolute right-1 top-1/2 -translate-y-1/2 transition-colors";
-                    dot.title = "Offline";
+                    dot.title = t("dotOffline");
                 });
 
                 mqttClient.on("message", (topic, message, packet) => {
@@ -1188,6 +1397,7 @@
         document.getElementById("roomInput").addEventListener("change", setupRoomSync);
 
         window.onload = function() {
+            applyStaticI18n();
             render();
             setupRoomSync();
         };
