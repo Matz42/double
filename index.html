@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Tischtennis Doppel-Zählmaschine</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -18,6 +18,12 @@
             --pencil-dark: #2c2d30;
         }
 
+        /* Kein Scrollen: Seite füllt genau den sichtbaren Bereich */
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+
         body {
             font-family: 'Chakra Petch', sans-serif;
             background-color: #2b2623;
@@ -27,6 +33,8 @@
             user-select: none;
             -webkit-user-select: none;
             touch-action: manipulation;
+            height: 100vh;
+            height: 100dvh;
         }
 
         .mono-num {
@@ -152,9 +160,9 @@
         }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-center p-2 sm:p-5">
+<body class="flex flex-col items-center justify-center p-2">
 
-    <!-- Hauptblatt -->
+    <!-- Hauptblatt (wird per JS so skaliert, dass es immer komplett sichtbar ist) -->
     <main class="notepad-paper w-full max-w-md rounded-md px-4 py-5 sm:px-7 sm:py-6 flex flex-col justify-between">
         
         <!-- 1. ZEILE: Room mit "0000" vorbelegt + Live-Sync Statuspunkt -->
@@ -629,6 +637,43 @@
             render();
         }
 
+        // =====================================================================
+        // ANPASSUNG AN DEN BILDSCHIRM: alles sichtbar, ohne Scrollen
+        // Das Blatt wird bei Bedarf verkleinert, bis es komplett in den
+        // sichtbaren Bereich passt (nie vergrößert).
+        // =====================================================================
+        function fitToViewport() {
+            const main = document.querySelector("main");
+            if (!main) return;
+
+            const cs = getComputedStyle(document.body);
+            const padY = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+            const padX = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+            const availH = window.innerHeight - padY;
+            const availW = window.innerWidth - padX;
+
+            // Erst auf Normalgröße, dann messen
+            main.style.zoom = 1;
+            main.style.transform = "";
+            const h = main.offsetHeight;
+            const w = main.offsetWidth;
+            if (!h || !w) return;
+
+            const scale = Math.min(1, availH / h, availW / w);
+            if (scale < 1) {
+                if ("zoom" in main.style) {
+                    main.style.zoom = scale;
+                } else {
+                    // Fallback ohne CSS-zoom: per Transform skalieren
+                    main.style.transformOrigin = "center center";
+                    main.style.transform = `scale(${scale})`;
+                }
+            }
+        }
+        window.addEventListener("resize", fitToViewport);
+        window.addEventListener("orientationchange", () => setTimeout(fitToViewport, 150));
+        if (window.visualViewport) window.visualViewport.addEventListener("resize", fitToViewport);
+
         // Schläger-SVGs in alle 4 Slots einsetzen
         for (let i = 0; i < 4; i++) {
             document.getElementById(`racket-${i}`).innerHTML = COLORFUL_RACKET_SVG;
@@ -1071,6 +1116,7 @@
 
             updateUndoButton();
             applyLock();
+            fitToViewport(); // Höhe kann sich ändern (Banner, Ergebnis-Bereich) -> neu einpassen
         }
 
         // Raum 0000 (oder leer) = gesperrt: nur das Raumfeld ist bedienbar
@@ -1155,6 +1201,7 @@
             const feedback = document.getElementById("copyFeedback");
             feedback.innerText = t("copied", { text: resultText });
             feedback.classList.remove("hidden");
+            fitToViewport();
 
             // 2. Aktion: Discord-Kanal öffnen
             const newWin = window.open(DISCORD_CHANNEL_URL, "_blank");
@@ -1400,6 +1447,11 @@
             applyStaticI18n();
             render();
             setupRoomSync();
+            fitToViewport();
+            // Nach dem Laden der Schriftarten neu einpassen (Maße ändern sich)
+            if (document.fonts && document.fonts.ready) {
+                document.fonts.ready.then(fitToViewport);
+            }
         };
     </script>
 </body>
